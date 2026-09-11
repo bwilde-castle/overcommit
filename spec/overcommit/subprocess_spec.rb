@@ -108,8 +108,8 @@ describe Overcommit::Subprocess do
     end
   end
 
-  # These examples assert on the argument vector handed to ChildProcess rather
-  # than on observable behaviour, so that the Windows code path can be checked
+  # Subprocess no longer branches on platform, but this guards against
+  # reintroducing a shell wrapper -- if one came back, this would catch it
   # from CI (which only runs Linux -- see
   # https://github.com/sds/overcommit/issues/836).
   describe 'the argument vector handed to ChildProcess' do
@@ -131,36 +131,14 @@ describe Overcommit::Subprocess do
       )
     end
 
-    [true, false].each do |windows|
-      context "when Overcommit::OS.windows? is #{windows}" do
-        before do
-          Overcommit::OS.stub(:windows?).and_return(windows)
-        end
+    it 'passes the arguments through verbatim from .spawn' do
+      ChildProcess.should_receive(:build).with(*args).and_return(process)
+      described_class.spawn(args)
+    end
 
-        it 'passes the arguments through verbatim from .spawn' do
-          expect(ChildProcess).to receive(:build).with(*args).and_return(process)
-          described_class.spawn(args)
-        end
-
-        it 'passes the arguments through verbatim from .spawn_detached' do
-          expect(ChildProcess).to receive(:build).with(*args).and_return(process)
-          described_class.spawn_detached(args)
-        end
-
-        it 'does not wrap the command in a cmd.exe invocation' do
-          received = nil
-          ChildProcess.stub(:build) do |*actual|
-            received = actual
-            process
-          end
-
-          described_class.spawn(args)
-
-          received.should == args
-          received.should_not include 'cmd.exe'
-          received.first.should == 'git'
-        end
-      end
+    it 'passes the arguments through verbatim from .spawn_detached' do
+      ChildProcess.should_receive(:build).with(*args).and_return(process)
+      described_class.spawn_detached(args)
     end
   end
 end
